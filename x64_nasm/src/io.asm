@@ -1,3 +1,4 @@
+%line 1 "io.asm"
 ;; =============================================================================
 ;;  File I/O.
 ;; =============================================================================
@@ -47,9 +48,7 @@ read:
     jl .read_error
 
     ;; Make sure we haven’t changed the padding size
-    %if IO_INPUT_PADDING_BYTES != 8
-        %error "IO_INPUT_PADDING_BYTES was changed. Update the 'mov qword' below."
-    %endif
+    static_assert IO_INPUT_PADDING_BYTES == 8, "IO_INPUT_PADDING_BYTES was changed. Update the 'mov qword' below."
 
     ;; Increment size of buffer and go again.
     add r14, rax

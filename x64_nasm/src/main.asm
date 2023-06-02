@@ -2,50 +2,18 @@ bits 64
 default rel
 
 ;; =============================================================================
-;;  Constant data.
-;; =============================================================================
-section .rodata
-error_usage db "Usage: ./lexer [<filename>]", 0
-error_duplicate_filename db "ERROR: Must not specify more than one input file", 10, 0
-error_open_read_failed db "ERROR: Could not open file for reading", 0
-error_read_failed db "ERROR: Could not read from file", 0
-error_integer_overflow db "ERROR: Integer overflow", 10, 0
-
-string_format_read_file_error db "%s '%s' (errno: %i)", 10, 0
-string_format_location db "%s at (%u:%u): ", 0
-string_format_unexpected_character db "ERROR: Unexpected character U+%hhx ('%c')", 10, 0
-string_format_string db "%s", 0
-string_format_integer_token_value db " %llu", 10, 0
-string_format_ident_token_value db " %.*s", 10, 0
-string_format_read_errno db "ERROR: Read failed with errno %d", 10, 0
-
-string_open_mode_read db "rb", 0
-string_dot_exit db ".exit", 10, 0
-string_default_filename db "<input>", 0
-string_default_prompt db ">> ", 0
-DEFAULT_PROMPT_SIZE equ $ - string_default_prompt - 1
-
-;; =============================================================================
-;;  Static variables.
-;; =============================================================================
-section .bss
-filename resq 1
-file_contents resq 1
-file_size resq 1
-
-prompt resq 1
-prompt_size resq 1
-
-;; State.
-has_error resb 1
-
-;; =============================================================================
 ;;  Includes.
 ;; =============================================================================
+%use smartalign
+
+%include "sys.asm"
 %include "utils.asm"
 %include "tokens.asm"
 %include "io.asm"
 %include "lexer.asm"
+%include "ast.asm"
+%include "parser.asm"
+%line 15 "main.asm"
 
 ;; =============================================================================
 ;; Register usage:

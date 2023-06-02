@@ -1,3 +1,4 @@
+%line 1 "lexer.asm"
 ;; =============================================================================
 ;;  Lexer tables.
 ;; =============================================================================
@@ -162,7 +163,6 @@ lexer_init:
 ;;
 next_token:
     ;; Init token.
-    mov ebx, TK_INVALID
     mov r12, r13
     sub r12, rbp
     sub r12, 1
@@ -200,7 +200,6 @@ align CACHE_LINE_SIZE
     ;; Return eof.
     mov ebx, TK_EOF
     ret
-
 
 ;;
 ;; Lex an identifier.
@@ -350,6 +349,8 @@ lexer_jump_target_punctuation_two_chars:
 lexer_jump_target_invalid:
     endbr64
 
+    mov ebx, TK_INVALID
+
     push r15
     next_char
     add r12, 1
@@ -374,9 +375,7 @@ print_token:
     call print_location
 
     ;; Print token type.
-    %if TOKEN_STRING_LENGTH != 8
-        %error LEA below doesn’t work anymore
-    %endif
+    static_assert TOKEN_STRING_LENGTH == 8, "LEA below doesn’t work anymore"
     lea esi, [ebx * 8 + table_token_names]
     lea rdi, [string_format_string]
     xor eax, eax
