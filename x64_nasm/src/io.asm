@@ -8,14 +8,27 @@ IO_INPUT_PADDING_BYTES equ 8
 
 ;; Read as much data as possible from a file descriptor.
 ;;
+;; This function handles both reading input from a file and from
+;; a tty. As a result, it is a bit complicated because e.g. a read
+;; of size 0 means something very different if we’re reading from
+;; a tty vs from a file.
+;;
+;; edi: 1 or 0, depending on whether we’re reading from a tty.
+;;
 ;; r12: fd
 ;; r13: buffer data
 ;; r14: buffer size
 ;; r15: buffer capacity
 ;;
-;; returns: 1 on error, 0 on success.
+;; returns rax: 1 on error, 0 on success.
+;; returns rdx: 1 if EOF was reached, 0 otherwise.
 read:
-    sub rsp, 8 ; Align stack.
+    push rbx
+    push rbp
+    sub rsp, 8
+
+    ;; Save argument.
+    mov ebp, edi
 
     ;; Check if we have space in the buffer.
 .read_loop:
@@ -44,17 +57,51 @@ read:
     ;; Check for errors.
     ;; If we read 0 chars, then we’re done.
     test rax, rax
-    jz .return_ok
+    jz .read_of_size_0
     jl .read_error
 
-    ;; Make sure we haven’t changed the padding size
-    static_assert IO_INPUT_PADDING_BYTES == 8, "IO_INPUT_PADDING_BYTES was changed. Update the 'mov qword' below."
-
-    ;; Increment size of buffer and go again.
+    ;; Increment size of buffer.
     add r14, rax
+
+    ;; If we’re reading from a tty, we need to check some things.
+    test ebp, ebp
+    jnz .tty_checks
+
+    ;; Otherwise, go again.
     jmp .read_loop
 
+.tty_checks:
+    ;; If we’re reading from a tty, and the last char is a newline, then we’re done.
+    movzx eax, byte [r13 + r14 - 1]
+    cmp eax, 10
+    je .return_ok
+
+    ;; Otherwise, a read of 0 bytes indicates EOF.
+.tty_read_of_size_0:
+    test r14, r14
+    jnz .read_loop
+
+    ;; Tell the caller that EOF was signalled and replace it w/ a 0.
+    mov rdx, 1
+    mov byte [r13 + r14 - 1], 0
+    jmp .return_eof
+
+.read_of_size_0:
+    ;; If we’re reading from a tty, a read of size 0 indicates that the user
+    ;; pressed CTRL+D. We want to ignore CTRL+ if the line is not empty, so
+    ;; we jump to the code above to check whether there is data in the buffer.
+    ;;
+    ;; If we’re reading from a file, then EOF indicates that we should really
+    ;; stop reading, so we do that instead.
+    test ebp, ebp
+    jnz .tty_read_of_size_0
+
 .return_ok:
+    ;; Not at EOF (only relevant for ttys).
+    xor rdx, rdx
+
+.return_eof:
+    static_assert IO_INPUT_PADDING_BYTES == 8, "IO_INPUT_PADDING_BYTES was changed. Update the 'mov qword' below."
     mov qword [r13 + r14], 0 ; Zero-terminate the buffer.
     xor eax, eax
     jmp .return
@@ -69,6 +116,8 @@ read:
 
 .return:
     add rsp, 8
+    pop rbp
+    pop rbx
     ret
 
 ;;
@@ -106,6 +155,7 @@ read_file:
 
     ;; Save fd.
     mov r12, rax
+    xor edi, edi ; Not a tty.
     call read
     test rax, rax
     jnz .error_read

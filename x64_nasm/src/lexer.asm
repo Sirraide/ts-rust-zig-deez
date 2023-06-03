@@ -150,10 +150,10 @@ section .text
 ;; Initialise the lexer.
 ;;
 lexer_init:
-    mov rbp, [file_contents]
+    mov rbp, [gs:context.file_contents]
     xor r12, r12
     mov r13, rbp
-    mov r14, [file_size]
+    mov r14, [gs:context.file_size]
     add r14, r13
     mov r15, ' '
     ret
@@ -354,7 +354,7 @@ lexer_jump_target_invalid:
     push r15
     next_char
     add r12, 1
-    mov byte [has_error], 1
+    mov byte [gs:context.has_error], 1
 
     call print_location
 
@@ -418,7 +418,7 @@ print_token:
 ;;
 print_location:
     lea rdi, [string_format_location]
-    mov rsi, qword [filename]
+    mov rsi, qword [gs:context.filename]
     mov rdx, r12
     shr rdx, 32
     mov rcx, r12
@@ -455,7 +455,7 @@ stoi:
     sub rsp, 8
     call print_location
     mov rdi, error_integer_overflow
-    mov byte [has_error], 1
+    mov byte [gs:context.has_error], 1
     call puts
     add rsp, 8
     stc
