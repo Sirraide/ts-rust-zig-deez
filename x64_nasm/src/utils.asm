@@ -56,6 +56,7 @@ extern printf
 extern strncmp
 extern exit
 extern abort
+extern malloc
 extern realloc
 extern free
 

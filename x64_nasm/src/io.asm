@@ -155,20 +155,47 @@ read_file:
 
     ;; Save fd.
     mov r12, rax
+
+    ;; Stat the file to get its size.
+    sub rsp, SIZE_OF_STRUCT_STAT
+    mov rdi, rax
+    mov rsi, rsp
+    mov eax, SYS_fstat
+    syscall
+    test rax, rax
+    jnz .error_stat
+
+    ;; Get the size and yeet the stat struct.
+    mov r15, [rsp + OFFSET_OF_STRUCT_STAT_ST_SIZE]
+    add rsp, SIZE_OF_STRUCT_STAT
+    mov rax, [rsp]
+    mov [rax], r15
+
+    ;; Add extra bytes of padding.
+    add r15, IO_INPUT_PADDING_BYTES
+
+    ;; Allocate a buffer of that size.
+    mov rdi, r15
+    call malloc
+    mov r13, rax
+
+    ;; Read the file.
     xor edi, edi ; Not a tty.
     call read
     test rax, rax
     jnz .error_read
 
-    ;; Save file size and buffer.
-    mov rax, [rsp]
-    mov [rax], r14
+    ;; Save buffer.
     mov rax, [rsp + 8]
     mov [rax], r13
 
     ;; Done.
     xor r15, r15 ; Return value.
     jmp .close_file
+
+.error_stat:
+    lea rsi, [error_stat_failed]
+    jmp .error_print
 
 .error_read:
     lea rsi, [error_read_failed]
